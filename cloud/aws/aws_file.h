@@ -45,11 +45,11 @@
 namespace {
 
 inline std::string GetBucket(const std::string& bucket_prefix) {
-  return "rockset." + bucket_prefix;
+  return bucket_prefix;
 }
 
 inline std::string GetStreamName(const std::string& bucket_prefix) {
-  return "rockset." + bucket_prefix;
+  return bucket_prefix;
 }
 inline Aws::String GetAwsBucket(const std::string& bucket_prefix) {
   const std::string dd = GetBucket(bucket_prefix);

@@ -1251,7 +1251,7 @@ TEST_F(CloudTest, EphemeralResync) {
   }
 }
 
-#ifdef AWS_DO_NOT_RUN
+//#ifdef AWS_DO_NOT_RUN
 //
 // Verify that we can cache data from S3 in persistent cache.
 //
@@ -1274,7 +1274,7 @@ TEST_F(CloudTest, PersistentCache) {
   ASSERT_EQ(value, "World");
   CloseDB();
 }
-#endif /* AWS_DO_NOT_RUN */
+//#endif /* AWS_DO_NOT_RUN */
 
 }  //  namespace rocksdb
 

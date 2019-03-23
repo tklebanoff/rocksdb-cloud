@@ -42,6 +42,12 @@ if(POLICY CMP0042)
   cmake_policy(SET CMP0042 NEW)
 endif()
 
+
+add_definitions(-DUSE_AWS)
+include_directories(/usr/local/include)
+list(APPEND THIRDPARTY_LIBS aws-cpp-sdk-s3 aws-cpp-sdk-kinesis aws-cpp-sdk-core)
+link_directories(/usr/local/lib)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules/")
 
 option(WITH_JEMALLOC "build with JeMalloc" OFF)
@@ -76,7 +82,8 @@ else()
     if(gflags_FOUND)
       add_definitions(-DGFLAGS=1)
       include_directories(${gflags_INCLUDE_DIR})
-      list(APPEND THIRDPARTY_LIBS ${gflags_LIBRARIES})
+      #list(APPEND THIRDPARTY_LIBS ${gflags_LIBRARIES})
+      list(APPEND THIRDPARTY_LIBS /usr/lib/x86_64-linux-gnu/libgflags.so.2.2)
     endif()
   endif()
 
@@ -677,7 +684,20 @@ set(SOURCES
         utilities/ttl/db_ttl_impl.cc
         utilities/write_batch_with_index/write_batch_with_index.cc
         utilities/write_batch_with_index/write_batch_with_index_internal.cc
-        $<TARGET_OBJECTS:build_version>)
+
+	cloud/aws/aws_env.cc                                                                                                                                                                                            
+	cloud/aws/aws_kafka.cc                                                                                                                                                                                          
+	cloud/aws/aws_kinesis.cc                                                                                                                                                                                        
+	cloud/aws/aws_log.cc                                                                                                                                                                                            
+	cloud/aws/aws_retry.cc                                                                                                                                                                                          
+	cloud/aws/aws_s3.cc                                                                                                                                                                                             
+	cloud/db_cloud_impl.cc
+	cloud/cloud_env.cc                                                                                                                                                                                              
+	cloud/cloud_env_options.cc                                                                                                                                                                                      
+	cloud/manifest_reader.cc                                                                                                                                                                                        
+	cloud/purge.cc                                                                                                                                                                                                  
+	cloud/cloud_manifest.cc 
+	$<TARGET_OBJECTS:build_version>)
 
 if(HAVE_SSE42 AND NOT FORCE_SSE42)
   if(NOT MSVC)
@@ -981,6 +1001,10 @@ if(WITH_TESTS)
         utilities/transactions/write_unprepared_transaction_test.cc
         utilities/ttl/ttl_test.cc
         utilities/write_batch_with_index/write_batch_with_index_test.cc
+
+	cloud/db_cloud_test.cc
+	cloud/cloud_manifest_test.cc
+
   )
   if(WITH_LIBRADOS)
     list(APPEND TESTS utilities/env_librados_test.cc)
