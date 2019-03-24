@@ -83,7 +83,7 @@ else()
       add_definitions(-DGFLAGS=1)
       include_directories(${gflags_INCLUDE_DIR})
       #list(APPEND THIRDPARTY_LIBS ${gflags_LIBRARIES})
-      list(APPEND THIRDPARTY_LIBS $ENV{GFLAGS}/lib/libgflags.a)
+      list(APPEND THIRDPARTY_LIBS /hackmitel/tools/gflags/lib/libgflags.a )
     endif()
   endif()
 
