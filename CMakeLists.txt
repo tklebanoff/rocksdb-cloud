@@ -740,8 +740,9 @@ else()
 endif()
 
 set(ROCKSDB_STATIC_LIB rocksdb${ARTIFACT_SUFFIX})
-set(ROCKSDB_SHARED_LIB rocksdb-shared${ARTIFACT_SUFFIX})
-set(ROCKSDB_IMPORT_LIB ${ROCKSDB_SHARED_LIB})
+#set(ROCKSDB_SHARED_LIB rocksdb-shared${ARTIFACT_SUFFIX})
+#set(ROCKSDB_IMPORT_LIB ${ROCKSDB_SHARED_LIB})
+set(ROCKSDB_IMPORT_LIB ${ROCKSDB_STATIC_LIB})
 
 option(WITH_LIBRADOS "Build with librados" OFF)
 if(WITH_LIBRADOS)
@@ -754,6 +755,7 @@ if(WIN32)
   set(SYSTEM_LIBS ${SYSTEM_LIBS} Shlwapi.lib Rpcrt4.lib)
   set(LIBS ${ROCKSDB_STATIC_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
 else()
+    #[[
   set(SYSTEM_LIBS ${CMAKE_THREAD_LIBS_INIT})
   set(LIBS ${ROCKSDB_SHARED_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
 
@@ -766,12 +768,26 @@ else()
                         SOVERSION ${ROCKSDB_VERSION_MAJOR}
                         CXX_STANDARD 11
                         OUTPUT_NAME "rocksdb")
+                    #]]
+  set(SYSTEM_LIBS ${CMAKE_THREAD_LIBS_INIT})
+  set(LIBS ${ROCKSDB_STATIC_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
+
+  add_library(${ROCKSDB_STATIC_LIB} SHARED ${SOURCES})
+  target_link_libraries(${ROCKSDB_STATIC_LIB}
+    ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
+  set_target_properties(${ROCKSDB_STATIC_LIB} PROPERTIES
+                        LINKER_LANGUAGE CXX
+                        VERSION ${ROCKSDB_VERSION}
+                        SOVERSION ${ROCKSDB_VERSION_MAJOR}
+                        CXX_STANDARD 11
+                        OUTPUT_NAME "rocksdb")
 endif()
 
 add_library(${ROCKSDB_STATIC_LIB} STATIC ${SOURCES})
 target_link_libraries(${ROCKSDB_STATIC_LIB}
   ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
 
+#[[
 if(WIN32)
   add_library(${ROCKSDB_IMPORT_LIB} SHARED ${SOURCES})
   target_link_libraries(${ROCKSDB_IMPORT_LIB}
@@ -785,6 +801,7 @@ if(WIN32)
       COMPILE_FLAGS "/Fd${CMAKE_CFG_INTDIR}/${ROCKSDB_IMPORT_LIB}.pdb")
   endif()
 endif()
+#]]
 
 option(WITH_JNI "build with JNI" OFF)
 if(WITH_JNI OR JNI)
@@ -832,6 +849,7 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   )
 
+#[[
   install(
     TARGETS ${ROCKSDB_SHARED_LIB}
     EXPORT RocksDBTargets
@@ -840,6 +858,7 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   )
+  #]]
 
   install(
     EXPORT RocksDBTargets
