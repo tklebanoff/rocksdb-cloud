@@ -83,7 +83,7 @@ else()
       add_definitions(-DGFLAGS=1)
       include_directories(${gflags_INCLUDE_DIR})
       #list(APPEND THIRDPARTY_LIBS ${gflags_LIBRARIES})
-      list(APPEND THIRDPARTY_LIBS /usr/lib/x86_64-linux-gnu/libgflags.so.2.2)
+      list(APPEND THIRDPARTY_LIBS ENV{GFLAGS}/lib/libgflags.a)
     endif()
   endif()
 
