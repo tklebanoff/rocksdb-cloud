@@ -46,11 +46,11 @@ endif()
 add_definitions(-DUSE_AWS)
 include_directories(/usr/local/include)
 list(APPEND THIRDPARTY_LIBS 
-    aws-c-event-stream
-    aws-c-common
     aws-cpp-sdk-s3 
     aws-cpp-sdk-kinesis 
     aws-cpp-sdk-core
+    aws-c-event-stream
+    aws-c-common
     /usr/lib/libcrypto.a
     /usr/lib/libcurl.a
     )
