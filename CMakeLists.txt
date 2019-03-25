@@ -52,6 +52,7 @@ list(APPEND THIRDPARTY_LIBS
     aws-cpp-sdk-kinesis 
     aws-cpp-sdk-core
     /usr/lib/libcrypto.a
+    /usr/lib/libcurl.a
     )
 link_directories(/usr/local/lib)
 
