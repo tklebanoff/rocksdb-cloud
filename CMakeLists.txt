@@ -52,7 +52,6 @@ list(APPEND THIRDPARTY_LIBS
     aws-cpp-sdk-kinesis 
     aws-cpp-sdk-core
     /usr/lib/libcrypto.a
-
     )
 link_directories(/usr/local/lib)
 
@@ -781,6 +780,7 @@ else()
 endif()
 
 add_library(${ROCKSDB_STATIC_LIB} STATIC ${SOURCES})
+message(STATUS "LIBS: " ${LIBS})
 target_link_libraries(${ROCKSDB_STATIC_LIB}
   ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
 
