@@ -53,9 +53,9 @@ list(APPEND THIRDPARTY_LIBS
     aws-checksums
     aws-c-common
     /usr/lib/libcrypto.a
-    #/usr/lib/libssl.a
-    /usr/lib/libtls.a
     /usr/lib/libcurl.a
+    /usr/lib/libtls.a
+    #/usr/lib/libssl.a
     /usr/lib/libssh2.a
     /lib/libz.a
     )
