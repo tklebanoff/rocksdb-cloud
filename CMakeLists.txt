@@ -55,7 +55,7 @@ list(APPEND THIRDPARTY_LIBS
     /usr/lib/libcrypto.a
     /usr/lib/libcurl.a
     /usr/lib/libtls.a
-    #/usr/lib/libssl.a
+    /usr/lib/libssl.a
     /usr/lib/libssh2.a
     /lib/libz.a
     )
