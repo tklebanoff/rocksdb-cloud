@@ -57,6 +57,7 @@ list(APPEND THIRDPARTY_LIBS
     /usr/lib/libssl.a
     /usr/lib/libssh2.a
     /usr/lib/libcrypto.a
+    /usr/lib/libnghttp2.so #can we get this static somehow?
     /lib/libz.a
     )
 link_directories(/usr/local/lib)
