@@ -50,9 +50,14 @@ list(APPEND THIRDPARTY_LIBS
     aws-cpp-sdk-kinesis 
     aws-cpp-sdk-core
     aws-c-event-stream
+    aws-checksums
     aws-c-common
+    /usr/lib/libssh2.a
     /usr/lib/libcrypto.a
+    #/usr/lib/libssl.a
+    /usr/lib/libtls.a
     /usr/lib/libcurl.a
+    /lib/libz.a
     )
 link_directories(/usr/local/lib)
 
