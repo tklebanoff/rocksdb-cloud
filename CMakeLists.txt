@@ -52,11 +52,11 @@ list(APPEND THIRDPARTY_LIBS
     aws-c-event-stream
     aws-checksums
     aws-c-common
-    /usr/lib/libcrypto.a
     /usr/lib/libcurl.a
     /usr/lib/libtls.a
     /usr/lib/libssl.a
     /usr/lib/libssh2.a
+    /usr/lib/libcrypto.a
     /lib/libz.a
     )
 link_directories(/usr/local/lib)
