@@ -69,6 +69,10 @@ option(WITH_SNAPPY "build with SNAPPY" OFF)
 option(WITH_LZ4 "build with lz4" OFF)
 option(WITH_ZLIB "build with zlib" OFF)
 option(WITH_ZSTD "build with zstd" OFF)
+option(WITH_WINDOWS_UTF8_FILENAMES "use UTF8 as characterset for opening files, regardles of the system code page" OFF)
+if (WITH_WINDOWS_UTF8_FILENAMES)
+  add_definitions(-DROCKSDB_WINDOWS_UTF8_FILENAMES)
+endif()
 if(MSVC)
   # Defaults currently different for GFLAGS.
   #  We will address find_package work a little later
@@ -384,7 +388,7 @@ endif()
 option(ROCKSDB_LITE "Build RocksDBLite version" OFF)
 if(ROCKSDB_LITE)
   add_definitions(-DROCKSDB_LITE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -Os")
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Cygwin")
@@ -489,6 +493,7 @@ set(SOURCES
         db/compaction_iterator.cc
         db/compaction_job.cc
         db/compaction_picker.cc
+        db/compaction_picker_fifo.cc
         db/compaction_picker_universal.cc
         db/convenience.cc
         db/db_filesnapshot.cc
@@ -521,6 +526,7 @@ set(SOURCES
         db/merge_helper.cc
         db/merge_operator.cc
         db/range_del_aggregator.cc
+        db/range_tombstone_fragmenter.cc
         db/repair.cc
         db/snapshot_impl.cc
         db/table_cache.cc
@@ -594,6 +600,7 @@ set(SOURCES
         table/plain_table_index.cc
         table/plain_table_key_coding.cc
         table/plain_table_reader.cc
+        table/sst_file_reader.cc
         table/sst_file_writer.cc
         table/table_properties.cc
         table/two_level_iterator.cc
@@ -620,6 +627,7 @@ set(SOURCES
         util/filename.cc
         util/filter_policy.cc
         util/hash.cc
+        util/jemalloc_nodump_allocator.cc
         util/log_buffer.cc
         util/murmurhash.cc
         util/random.cc
@@ -714,12 +722,10 @@ set(SOURCES
 	cloud/cloud_manifest.cc 
 	$<TARGET_OBJECTS:build_version>)
 
-if(HAVE_SSE42 AND NOT FORCE_SSE42)
-  if(NOT MSVC)
-set_source_files_properties(
-  util/crc32c.cc
-      PROPERTIES COMPILE_FLAGS "-msse4.2 -mpclmul")
-  endif()
+if(HAVE_SSE42 AND NOT MSVC)
+  set_source_files_properties(
+    util/crc32c.cc
+    PROPERTIES COMPILE_FLAGS "-msse4.2 -mpclmul")
 endif()
 
 if(HAVE_POWER8)
@@ -943,6 +949,8 @@ if(WITH_TESTS)
         db/perf_context_test.cc
         db/plain_table_db_test.cc
         db/prefix_test.cc
+        db/range_del_aggregator_test.cc
+        db/range_tombstone_fragmenter_test.cc
         db/repair_test.cc
         db/table_properties_collector_test.cc
         db/version_builder_test.cc
@@ -971,6 +979,7 @@ if(WITH_TESTS)
         table/data_block_hash_index_test.cc
         table/full_filter_block_test.cc
         table/merger_test.cc
+        table/sst_file_reader_test.cc
         table/table_test.cc
         tools/ldb_cmd_test.cc
         tools/reduce_levels_test.cc
