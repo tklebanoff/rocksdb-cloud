@@ -2939,7 +2939,7 @@ Status VersionSet::ProcessManifestWrites(
         }
 
 	//klebs merge -- which is better?
-#if 1
+#if 0
 	//rocksdb-cloud
         LogAndApplyHelper(last_writer->cfd, builder, version, e, mu);
 #else
