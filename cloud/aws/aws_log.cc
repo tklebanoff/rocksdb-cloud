@@ -7,6 +7,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <memory>
 
 #include "cloud/aws/aws_env.h"
 #include "cloud/aws/aws_file.h"
@@ -85,13 +86,13 @@ Status CloudLogController::Apply(const Slice& in) {
 
     // If this file is not yet open, open it and store it in cache.
     if (iter == cache_fds_.end()) {
-      unique_ptr<RandomRWFile> result;
+        std::unique_ptr<RandomRWFile> result;
       st = env_->GetPosixEnv()->NewRandomRWFile(
           pathname, &result, EnvOptions());
 
       if (!st.ok()) {
           // create the file
-          unique_ptr<WritableFile> tmp_writable_file;
+          std::unique_ptr<WritableFile> tmp_writable_file;
           env_->GetPosixEnv()->NewWritableFile(pathname, &tmp_writable_file,
                                                EnvOptions());
           tmp_writable_file.reset();
@@ -114,8 +115,10 @@ Status CloudLogController::Apply(const Slice& in) {
     st = fd->Write(offset_in_file, payload);
     if (!st.ok()) {
       Log(InfoLogLevel::DEBUG_LEVEL, env_->info_log_,
-          "[%s] Tailer: Error writing to cached file: %s", pathname.c_str(),
-          GetTypeName().c_str(), st.ToString().c_str());
+          "[%s] Tailer: Error writing to cached file: %s, Error: %s", 
+          GetTypeName().c_str(), 
+          pathname.c_str(),
+          st.ToString().c_str());
     }
   } else if (operation == kDelete) {
     // Delete file from cache directory.
@@ -131,8 +134,10 @@ Status CloudLogController::Apply(const Slice& in) {
 
     st = env_->GetPosixEnv()->DeleteFile(pathname);
     Log(InfoLogLevel::DEBUG_LEVEL, env_->info_log_,
-        "[%s] Tailer: Deleted file: %s %s",
-        GetTypeName().c_str(), pathname.c_str(), st.ToString().c_str());
+        "[%s] Tailer: Deleted file: %s, Error: %s",
+        GetTypeName().c_str(), 
+        pathname.c_str(), 
+        st.ToString().c_str());
 
     if (st.IsNotFound()) {
       st = Status::OK();

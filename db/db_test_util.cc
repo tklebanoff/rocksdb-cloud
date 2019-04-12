@@ -619,7 +619,10 @@ Env* DBTestBase::CreateNewAwsEnv(const std::string& prefix) {
                                          &coptions.credentials.secret_key,
                                          &region);
   if (!st.ok()) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-security"
     Log(InfoLogLevel::DEBUG_LEVEL, info_log_, st.ToString().c_str());
+#pragma GCC diagnostic pop
     assert(st.ok());
   } else {
     st = AwsEnv::NewAwsEnv(Env::Default(),

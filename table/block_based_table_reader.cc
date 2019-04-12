@@ -2594,6 +2594,8 @@ FragmentedRangeTombstoneIterator* BlockBasedTable::NewRangeTombstoneIterator(
       rep_->fragmented_range_dels, rep_->internal_comparator, snapshot);
 }
 
+//klebs comment -- the function below is not in the header! but it is also never called!
+#if 0
 InternalIterator* BlockBasedTable::NewUnfragmentedRangeTombstoneIterator(
     const ReadOptions& read_options) {
   if (rep_->range_del_handle.IsNull()) {
@@ -2622,6 +2624,7 @@ InternalIterator* BlockBasedTable::NewUnfragmentedRangeTombstoneIterator(
   return NewDataBlockIterator<DataBlockIter>(rep_, read_options,
                                              rep_->range_del_handle);
 }
+#endif
 
 bool BlockBasedTable::FullFilterKeyMayMatch(
     const ReadOptions& read_options, FilterBlockReader* filter,

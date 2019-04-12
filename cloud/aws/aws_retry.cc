@@ -37,7 +37,7 @@ bool AwsRetryStrategy::ShouldRetry(const AWSError<CoreErrors>& error,
     if (attemptedRetries <= internal_failure_num_retries_) {
       Log(InfoLogLevel::INFO_LEVEL, info_log_,
           "[aws] Encountered retriable failure: %s (code %d, http %d). "
-          "Exception %s. retry attempt %d is lesser than max retries %d. "
+          "Exception %s. retry attempt %ld is lesser than max retries %d. "
           "Retrying...",
           err.c_str(), static_cast<int>(ce),
           static_cast<int>(error.GetResponseCode()), emsg.c_str(),
@@ -46,7 +46,7 @@ bool AwsRetryStrategy::ShouldRetry(const AWSError<CoreErrors>& error,
     }
     Log(InfoLogLevel::INFO_LEVEL, info_log_,
         "[aws] Encountered retriable failure: %s (code %d, http %d). Exception "
-        "%s. retry attempt %d exceeds max retries %d. Aborting...",
+        "%s. retry attempt %ld exceeds max retries %d. Aborting...",
         err.c_str(), static_cast<int>(ce),
         static_cast<int>(error.GetResponseCode()), emsg.c_str(),
         attemptedRetries, internal_failure_num_retries_);
@@ -54,7 +54,7 @@ bool AwsRetryStrategy::ShouldRetry(const AWSError<CoreErrors>& error,
   }
   Log(InfoLogLevel::WARN_LEVEL, info_log_,
       "[aws] Encountered S3 failure %s (code %d, http %d). Exception %s."
-      " retry attempt %d max retries %d. Using default retry policy...",
+      " retry attempt %ld max retries %d. Using default retry policy...",
       err.c_str(), static_cast<int>(ce),
       static_cast<int>(error.GetResponseCode()), emsg.c_str(), attemptedRetries,
       internal_failure_num_retries_);
