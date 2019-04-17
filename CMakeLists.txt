@@ -45,21 +45,29 @@ endif()
 
 add_definitions(-DUSE_AWS)
 include_directories(/usr/local/include)
+
 list(APPEND THIRDPARTY_LIBS 
     aws-cpp-sdk-s3 
     aws-cpp-sdk-kinesis 
     aws-cpp-sdk-core
     aws-c-event-stream
     aws-checksums
-    aws-c-common
-    /usr/lib/libcurl.a
-    /usr/lib/libtls.a
-    /usr/lib/libssl.a
-    /usr/lib/libssh2.a
-    /usr/lib/libcrypto.a
-    /hackmitel/tools/nghttp2/lib64/libnghttp2.a #can we get this static somehow?
-    /lib/libz.a
-    )
+    aws-c-common)
+
+if(LOCAL_BUILD)
+    list(APPEND THIRDPARTY_LIBS /usr/lib/x86_64-linux-gnu/libcurl.so.4.5.0)
+else()
+    list(APPEND THIRDPARTY_LIBS 
+        /usr/lib/libcurl.a
+        /usr/lib/libtls.a
+        /usr/lib/libssl.a
+        /usr/lib/libssh2.a
+        /usr/lib/libcrypto.a
+        /hackmitel/tools/nghttp2/lib64/libnghttp2.a #can we get this static somehow?
+        /lib/libz.a
+        )
+endif()
+
 link_directories(/usr/local/lib)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules/")
@@ -138,7 +146,11 @@ else()
     add_definitions(-DLZ4)
     include_directories(${LZ4_INCLUDE_DIR})
     #list(APPEND THIRDPARTY_LIBS ${LZ4_LIBRARIES})
-    list(APPEND THIRDPARTY_LIBS /usr/lib/liblz4.a )
+    if(LOCAL_BUILD)
+        list(APPEND THIRDPARTY_LIBS /usr/lib/x86_64-linux-gnu/liblz4.so)
+    else()
+        list(APPEND THIRDPARTY_LIBS /usr/lib/liblz4.a )
+    endif()
   endif()
 
   if(WITH_ZSTD)
@@ -758,9 +770,12 @@ else()
 endif()
 
 set(ROCKSDB_STATIC_LIB rocksdb${ARTIFACT_SUFFIX})
-#set(ROCKSDB_SHARED_LIB rocksdb-shared${ARTIFACT_SUFFIX})
-#set(ROCKSDB_IMPORT_LIB ${ROCKSDB_SHARED_LIB})
-set(ROCKSDB_IMPORT_LIB ${ROCKSDB_STATIC_LIB})
+if(FALSE) #if(BUILD_SHARED)
+    set(ROCKSDB_SHARED_LIB rocksdb-shared${ARTIFACT_SUFFIX})
+    set(ROCKSDB_IMPORT_LIB ${ROCKSDB_SHARED_LIB})
+else()
+    set(ROCKSDB_IMPORT_LIB ${ROCKSDB_STATIC_LIB})
+endif()
 
 option(WITH_LIBRADOS "Build with librados" OFF)
 if(WITH_LIBRADOS)
@@ -774,20 +789,22 @@ if(WIN32)
   set(LIBS ${ROCKSDB_STATIC_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
 else()
   set(SYSTEM_LIBS ${CMAKE_THREAD_LIBS_INIT})
-  set(LIBS ${ROCKSDB_STATIC_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
 
-    #[[
-  set(LIBS ${ROCKSDB_SHARED_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
-  add_library(${ROCKSDB_SHARED_LIB} SHARED ${SOURCES})
-  target_link_libraries(${ROCKSDB_SHARED_LIB}
-    ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
-  set_target_properties(${ROCKSDB_SHARED_LIB} PROPERTIES
-                        LINKER_LANGUAGE CXX
-                        VERSION ${ROCKSDB_VERSION}
-                        SOVERSION ${ROCKSDB_VERSION_MAJOR}
-                        CXX_STANDARD 11
-                        OUTPUT_NAME "rocksdb")
-                    #]]
+  if(FALSE) #if(BUILD_SHARED)
+      set(LIBS ${ROCKSDB_SHARED_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
+      add_library(${ROCKSDB_SHARED_LIB} SHARED ${SOURCES})
+      target_link_libraries(${ROCKSDB_SHARED_LIB}
+          ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
+      set_target_properties(${ROCKSDB_SHARED_LIB} PROPERTIES
+          LINKER_LANGUAGE CXX
+          VERSION ${ROCKSDB_VERSION}
+          SOVERSION ${ROCKSDB_VERSION_MAJOR}
+          CXX_STANDARD 11
+          OUTPUT_NAME "rocksdb")
+  else()
+      set(LIBS ${ROCKSDB_STATIC_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
+  endif()
+
 endif()
 
 add_library(${ROCKSDB_STATIC_LIB} STATIC ${SOURCES})
@@ -849,6 +866,33 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
 
   install(DIRECTORY include/rocksdb COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
+  #[[klebs likes to have some more headers please ]]#
+  install(FILES 
+      cloud/cloud_env_impl.h
+      cloud/cloud_env_wrapper.h 
+      cloud/cloud_manifest.h 
+      cloud/db_cloud_impl.h 
+      cloud/filename.h 
+      cloud/manifest_reader.h 
+      cloud/purge.h 
+      COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/rocksdb/cloud")
+  install(FILES 
+      cloud/aws/aws_env.h 
+      cloud/aws/aws_file.h 
+      cloud/aws/aws_kafka.h 
+      cloud/aws/aws_kinesis.h 
+      cloud/aws/aws_log.h 
+      cloud/aws/aws_log.h 
+      COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/rocksdb/cloud/aws")
+  install(FILES 
+      db/log_reader.h
+      db/log_format.h
+      db/log_writer.h
+      COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/rocksdb/db")
+  install(FILES 
+      port/sys_time.h
+      COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/rocksdb/port")
+
   install(
     TARGETS ${ROCKSDB_STATIC_LIB}
     EXPORT RocksDBTargets
@@ -857,17 +901,17 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   )
 
-#[[
-  install(
-    TARGETS ${ROCKSDB_SHARED_LIB}
-    EXPORT RocksDBTargets
-    COMPONENT runtime
-    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  )
-  #]]
+if(FALSE) #if(BUILD_SHARED)
+    install(
+        TARGETS ${ROCKSDB_SHARED_LIB}
+        EXPORT RocksDBTargets
+        COMPONENT runtime
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+        )
+endif()
 
   install(
     EXPORT RocksDBTargets

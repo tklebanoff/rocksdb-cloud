@@ -7,7 +7,13 @@
 #include <algorithm>
 #include <memory>
 #include <iostream>
+
+#if 0
+#include <rocksdb/cloud/cloud_env_impl.h>
+#else
 #include "cloud/cloud_env_impl.h"
+#endif
+
 #include "port/sys_time.h"
 
 #ifdef USE_AWS
