@@ -46,6 +46,8 @@ endif()
 add_definitions(-DUSE_AWS)
 include_directories(/usr/local/include)
 
+include(CTest)
+
 list(APPEND THIRDPARTY_LIBS 
     aws-cpp-sdk-s3 
     aws-cpp-sdk-kinesis 
