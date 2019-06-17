@@ -46,7 +46,7 @@ endif()
 add_definitions(-DUSE_AWS)
 include_directories(/usr/local/include)
 
-include(CTest)
+#include(CTest)
 
 list(APPEND THIRDPARTY_LIBS 
     aws-cpp-sdk-s3 
