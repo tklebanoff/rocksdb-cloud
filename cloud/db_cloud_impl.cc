@@ -52,6 +52,47 @@ Status DBCloud::Open(const Options& options, const std::string& dbname,
   }
   return s;
 }
+Status DBCloud::OpenAsSecondary(const Options& options, 
+        const std::string& dbname,
+        const std::string& secondary_path,
+        const std::string& persistent_cache_path,
+        const uint64_t persistent_cache_size_gb, DBCloud** dbptr,
+        bool read_only) {
+    assert(read_only == true);
+
+    ColumnFamilyOptions cf_options(options);
+
+    std::vector<ColumnFamilyDescriptor> column_families;
+
+    column_families.push_back(
+            ColumnFamilyDescriptor(kDefaultColumnFamilyName, cf_options));
+
+    std::vector<ColumnFamilyHandle*> handles;
+
+    DBCloud* dbcloud = nullptr;
+
+    Status s =
+        DBCloud::OpenAsSecondary(options, 
+                dbname, 
+                secondary_path, 
+                column_families, 
+                persistent_cache_path,
+                persistent_cache_size_gb, 
+                &handles, 
+                &dbcloud, 
+                read_only);
+
+    if (s.ok()) 
+    {
+        assert(handles.size() == 1);
+        // i can delete the handle since DBImpl is always holding a reference to
+        // default column family
+        delete handles[0];
+        *dbptr = dbcloud;
+    }
+
+    return s;
+}
 
 namespace {
 Status writeCloudManifest(Env* local_env, CloudManifest* manifest,
@@ -62,7 +103,7 @@ Status writeCloudManifest(Env* local_env, CloudManifest* manifest,
   std::unique_ptr<WritableFile> file;
   Status s = local_env->NewWritableFile(tmp_fname, &file, EnvOptions());
   if (s.ok()) {
-    s = manifest->WriteToLog(unique_ptr<WritableFileWriter>(
+    s = manifest->WriteToLog(std::unique_ptr<WritableFileWriter>(
         new WritableFileWriter(std::move(file), tmp_fname, EnvOptions())));
   }
   if (s.ok()) {
@@ -225,6 +266,124 @@ Status DBCloud::Open(const Options& opt, const std::string& local_dbname,
       dbid.c_str(), st.ToString().c_str());
   return st;
 }
+
+Status DBCloud::OpenAsSecondary(const Options& opt, 
+        const std::string& local_dbname,
+        const std::string& secondary_path,
+        const std::vector<ColumnFamilyDescriptor>& column_families,
+        const std::string& persistent_cache_path,
+        const uint64_t persistent_cache_size_gb,
+        std::vector<ColumnFamilyHandle*>* handles, DBCloud** dbptr,
+        bool read_only) {
+
+    assert(read_only == true);
+
+    Status st;
+    Options options = opt;
+
+    // Created logger if it is not already pre-created by user.
+    if (!options.info_log) {
+        CreateLoggerFromOptions(local_dbname, options, &options.info_log);
+    }
+
+    CloudEnvImpl* cenv = static_cast<CloudEnvImpl*>(options.env);
+    Env* local_env = cenv->GetBaseEnv();
+    if (!read_only) {
+        local_env->CreateDirIfMissing(local_dbname);
+    }
+
+    st = DBCloudImpl::SanitizeDirectory(options, local_dbname, read_only);
+    if (!st.ok()) {
+        return st;
+    }
+
+    if (cenv->GetCloudType() != CloudType::kCloudNone) {
+        st = DBCloudImpl::MaybeMigrateManifestFile(local_env, options, local_dbname);
+        if (st.ok()) {
+            // Init cloud manifest
+            st = DBCloudImpl::FetchCloudManifest(cenv, options, local_dbname, false);
+        }
+        if (st.ok()) {
+            // Inits CloudEnvImpl::cloud_manifest_, which will enable us to read files
+            // from the cloud
+            st = cenv->LoadLocalCloudManifest(local_dbname);
+        }
+        if (st.ok()) {
+            // Rolls the new epoch in CLOUDMANIFEST
+            st = DBCloudImpl::RollNewEpoch(cenv, local_dbname);
+        }
+        if (!st.ok()) {
+            return st;
+        }
+
+        // Do the cleanup, but don't fail if the cleanup fails.
+        if (!read_only) {
+            st = cenv->DeleteInvisibleFiles(local_dbname);
+            if (!st.ok()) {
+                Log(InfoLogLevel::INFO_LEVEL, options.info_log,
+                        "Failed to delete invisible files: %s", st.ToString().c_str());
+                // Ignore the fail
+                st = Status::OK();
+            }
+        }
+    }
+
+    // If a persistent cache path is specified, then we set it in the options.
+    if (!persistent_cache_path.empty() && persistent_cache_size_gb) {
+        // Get existing options. If the persistent cache is already set, then do
+        // not make any change. Otherwise, configure it.
+        void* bopt = options.table_factory->GetOptions();
+        if (bopt != nullptr) {
+            BlockBasedTableOptions* tableopt =
+                static_cast<BlockBasedTableOptions*>(bopt);
+            if (!tableopt->persistent_cache) {
+                std::shared_ptr<PersistentCache> pcache;
+                st =
+                    NewPersistentCache(options.env, persistent_cache_path,
+                            persistent_cache_size_gb * 1024L * 1024L * 1024L,
+                            options.info_log, false, &pcache);
+                if (st.ok()) {
+                    tableopt->persistent_cache = pcache;
+                    Log(InfoLogLevel::INFO_LEVEL, options.info_log,
+                            "Created persistent cache %s with size %ld GB",
+                            persistent_cache_path.c_str(), persistent_cache_size_gb);
+                } else {
+                    Log(InfoLogLevel::INFO_LEVEL, options.info_log,
+                            "Unable to create persistent cache %s. %s",
+                            persistent_cache_path.c_str(), st.ToString().c_str());
+                    return st;
+                }
+            }
+        }
+    }
+    // We do not want a very large MANIFEST file because the MANIFEST file is
+    // uploaded to S3 for every update, so always enable rolling of Manifest file
+    options.max_manifest_file_size = DBCloudImpl::max_manifest_file_size;
+
+    DB* db = nullptr;
+    std::string dbid;
+    st = DB::OpenAsSecondary(options, local_dbname, secondary_path, column_families, handles,
+            &db);
+
+    // now that the database is opened, all file sizes have been verified and we
+    // no longer need to verify file sizes for each file that we open. Note that
+    // this might have a data race with background compaction, but it's not a big
+    // deal, since it's a boolean and it does not impact correctness in any way.
+    if (cenv->GetCloudEnvOptions().validate_filesize) {
+        *const_cast<bool*>(&cenv->GetCloudEnvOptions().validate_filesize) = false;
+    }
+
+    if (st.ok()) {
+        DBCloudImpl* cloud = new DBCloudImpl(db);
+        *dbptr = cloud;
+        db->GetDbIdentity(dbid);
+    }
+    Log(InfoLogLevel::INFO_LEVEL, options.info_log,
+            "Opened cloud db with local dir %s dbid %s. %s", local_dbname.c_str(),
+            dbid.c_str(), st.ToString().c_str());
+    return st;
+}
+
 
 Status DBCloudImpl::Savepoint() {
   std::string dbid;
@@ -428,7 +587,7 @@ Status DBCloudImpl::CreateNewIdentityFile(CloudEnv* cenv,
   Env* env = cenv->GetBaseEnv();
   Status st;
   {
-    unique_ptr<WritableFile> destfile;
+      std::unique_ptr<WritableFile> destfile;
     st = env->NewWritableFile(tmp_identity_path, &destfile, soptions);
     if (!st.ok()) {
       Log(InfoLogLevel::ERROR_LEVEL, options.info_log,
@@ -454,7 +613,7 @@ Status DBCloudImpl::CreateNewIdentityFile(CloudEnv* cenv,
   if (!st.ok()) {
     Log(InfoLogLevel::ERROR_LEVEL, options.info_log,
         "[db_cloud_impl] Unable to rename newly created IDENTITY.tmp "
-        " to IDENTITY. %S",
+        " to IDENTITY. %s",
         st.ToString().c_str());
     return st;
   }
@@ -975,7 +1134,7 @@ Status DBCloudImpl::SanitizeDirectory(const Options& options,
   // remap the filename appropriately, this is just to fool the underyling
   // RocksDB)
   {
-    unique_ptr<WritableFile> destfile;
+      std::unique_ptr<WritableFile> destfile;
     st = env->NewWritableFile(CurrentFileName(local_name), &destfile, soptions);
     if (!st.ok()) {
       Log(InfoLogLevel::ERROR_LEVEL, options.info_log,
@@ -1063,7 +1222,7 @@ Status DBCloudImpl::FetchCloudManifest(CloudEnv* cenv, const Options& options,
       local_dbname.c_str());
 
   // No cloud manifest, create an empty one
-  unique_ptr<CloudManifest> manifest;
+  std::unique_ptr<CloudManifest> manifest;
   CloudManifest::CreateForEmptyDatabase("", &manifest);
   return writeCloudManifest(cenv->GetBaseEnv(), manifest.get(), cloudmanifest);
 }

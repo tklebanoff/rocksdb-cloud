@@ -42,6 +42,36 @@ if(POLICY CMP0042)
   cmake_policy(SET CMP0042 NEW)
 endif()
 
+
+add_definitions(-DUSE_AWS)
+include_directories(/usr/local/include)
+
+#include(CTest)
+
+list(APPEND THIRDPARTY_LIBS 
+    aws-cpp-sdk-s3 
+    aws-cpp-sdk-kinesis 
+    aws-cpp-sdk-core
+    aws-c-event-stream
+    aws-checksums
+    aws-c-common)
+
+if(LOCAL_BUILD)
+    list(APPEND THIRDPARTY_LIBS /usr/lib/x86_64-linux-gnu/libcurl.so.4.5.0)
+else()
+    list(APPEND THIRDPARTY_LIBS 
+        /usr/lib/libcurl.a
+        /usr/lib/libtls.a
+        /usr/lib/libssl.a
+        /usr/lib/libssh2.a
+        /usr/lib/libcrypto.a
+        /hackmitel/tools/nghttp2/lib64/libnghttp2.a #can we get this static somehow?
+        /lib/libz.a
+        )
+endif()
+
+link_directories(/usr/local/lib)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules/")
 
 option(WITH_JEMALLOC "build with JeMalloc" OFF)
@@ -80,7 +110,8 @@ else()
     if(gflags_FOUND)
       add_definitions(-DGFLAGS=1)
       include_directories(${gflags_INCLUDE_DIR})
-      list(APPEND THIRDPARTY_LIBS ${gflags_LIBRARIES})
+      #list(APPEND THIRDPARTY_LIBS ${gflags_LIBRARIES})
+      list(APPEND THIRDPARTY_LIBS /hackmitel/tools/gflags/lib/libgflags.a )
     endif()
   endif()
 
@@ -94,7 +125,13 @@ else()
   if(WITH_ZLIB)
     find_package(zlib REQUIRED)
     add_definitions(-DZLIB)
-    include_directories(${ZLIB_INCLUDE_DIR})
+    if(ZLIB_INCLUDE_DIRS)
+      # CMake 3
+      include_directories(${ZLIB_INCLUDE_DIRS})
+    else()
+      # CMake 2
+      include_directories(${ZLIB_INCLUDE_DIR})
+    endif()
     list(APPEND THIRDPARTY_LIBS ${ZLIB_LIBRARIES})
   endif()
 
@@ -110,7 +147,12 @@ else()
     find_package(lz4 REQUIRED)
     add_definitions(-DLZ4)
     include_directories(${LZ4_INCLUDE_DIR})
-    list(APPEND THIRDPARTY_LIBS ${LZ4_LIBRARIES})
+    #list(APPEND THIRDPARTY_LIBS ${LZ4_LIBRARIES})
+    if(LOCAL_BUILD)
+        list(APPEND THIRDPARTY_LIBS /usr/lib/x86_64-linux-gnu/liblz4.so)
+    else()
+        list(APPEND THIRDPARTY_LIBS /usr/lib/liblz4.a )
+    endif()
   endif()
 
   if(WITH_ZSTD)
@@ -410,7 +452,7 @@ if(WITH_FALLOCATE)
 #include <linux/falloc.h>
 int main() {
  int fd = open(\"/dev/null\", 0);
- fallocate(fd, FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE, 0, 1024);
+ fallocate(fd, FALLOC_FL_KEEP_SIZE, 0, 1024);
 }
 " HAVE_FALLOCATE)
   if(HAVE_FALLOCATE)
@@ -483,6 +525,7 @@ set(SOURCES
         db/db_impl_debug.cc
         db/db_impl_experimental.cc
         db/db_impl_readonly.cc
+        db/db_impl_secondary.cc
         db/db_info_dumper.cc
         db/db_iter.cc
         db/dbformat.cc
@@ -495,6 +538,7 @@ set(SOURCES
         db/flush_scheduler.cc
         db/forward_iterator.cc
         db/internal_stats.cc
+        db/in_memory_stats_history.cc
         db/logs_with_prep_tracker.cc
         db/log_reader.cc
         db/log_writer.cc
@@ -524,7 +568,6 @@ set(SOURCES
         env/env_hdfs.cc
         env/mock_env.cc
         memtable/alloc_tracker.cc
-        memtable/hash_cuckoo_rep.cc
         memtable/hash_linklist_rep.cc
         memtable/hash_skiplist_rep.cc
         memtable/skiplistrep.cc
@@ -596,6 +639,7 @@ set(SOURCES
         util/comparator.cc
         util/compression_context_cache.cc
         util/concurrent_arena.cc
+        util/concurrent_task_limiter_impl.cc
         util/crc32c.cc
         util/delete_scheduler.cc
         util/dynamic_bloom.cc
@@ -636,20 +680,11 @@ set(SOURCES
         utilities/cassandra/format.cc
         utilities/cassandra/merge_operator.cc
         utilities/checkpoint/checkpoint_impl.cc
-        utilities/col_buf_decoder.cc
-        utilities/col_buf_encoder.cc
-        utilities/column_aware_encoding_util.cc
         utilities/compaction_filters/remove_emptyvalue_compactionfilter.cc
-        utilities/date_tiered/date_tiered_db_impl.cc
         utilities/debug.cc
-        utilities/document/document_db.cc
-        utilities/document/json_document.cc
-        utilities/document/json_document_builder.cc
         utilities/env_mirror.cc
         utilities/env_timed.cc
-        utilities/geodb/geodb_impl.cc
         utilities/leveldb_options/leveldb_options.cc
-        utilities/lua/rocks_lua_compaction_filter.cc
         utilities/memory/memory_util.cc
         utilities/merge_operators/bytesxor.cc
         utilities/merge_operators/max.cc
@@ -664,9 +699,7 @@ set(SOURCES
         utilities/persistent_cache/block_cache_tier_metadata.cc
         utilities/persistent_cache/persistent_cache_tier.cc
         utilities/persistent_cache/volatile_tier_impl.cc
-        utilities/redis/redis_lists.cc
         utilities/simulator_cache/sim_cache.cc
-        utilities/spatialdb/spatial_db.cc
         utilities/table_properties_collectors/compact_on_deletion_collector.cc
         utilities/trace/file_trace_reader_writer.cc
         utilities/transactions/optimistic_transaction_db_impl.cc
@@ -685,7 +718,20 @@ set(SOURCES
         utilities/ttl/db_ttl_impl.cc
         utilities/write_batch_with_index/write_batch_with_index.cc
         utilities/write_batch_with_index/write_batch_with_index_internal.cc
-        $<TARGET_OBJECTS:build_version>)
+
+	cloud/aws/aws_env.cc                                                                                                                                                                                            
+	cloud/aws/aws_kafka.cc                                                                                                                                                                                          
+	cloud/aws/aws_kinesis.cc                                                                                                                                                                                        
+	cloud/aws/aws_log.cc                                                                                                                                                                                            
+	cloud/aws/aws_retry.cc                                                                                                                                                                                          
+	cloud/aws/aws_s3.cc                                                                                                                                                                                             
+	cloud/db_cloud_impl.cc
+	cloud/cloud_env.cc                                                                                                                                                                                              
+	cloud/cloud_env_options.cc                                                                                                                                                                                      
+	cloud/manifest_reader.cc                                                                                                                                                                                        
+	cloud/purge.cc                                                                                                                                                                                                  
+	cloud/cloud_manifest.cc 
+	$<TARGET_OBJECTS:build_version>)
 
 if(HAVE_SSE42 AND NOT MSVC)
   set_source_files_properties(
@@ -726,8 +772,12 @@ else()
 endif()
 
 set(ROCKSDB_STATIC_LIB rocksdb${ARTIFACT_SUFFIX})
-set(ROCKSDB_SHARED_LIB rocksdb-shared${ARTIFACT_SUFFIX})
-set(ROCKSDB_IMPORT_LIB ${ROCKSDB_SHARED_LIB})
+if(FALSE) #if(BUILD_SHARED)
+    set(ROCKSDB_SHARED_LIB rocksdb-shared${ARTIFACT_SUFFIX})
+    set(ROCKSDB_IMPORT_LIB ${ROCKSDB_SHARED_LIB})
+else()
+    set(ROCKSDB_IMPORT_LIB ${ROCKSDB_STATIC_LIB})
+endif()
 
 option(WITH_LIBRADOS "Build with librados" OFF)
 if(WITH_LIBRADOS)
@@ -741,23 +791,30 @@ if(WIN32)
   set(LIBS ${ROCKSDB_STATIC_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
 else()
   set(SYSTEM_LIBS ${CMAKE_THREAD_LIBS_INIT})
-  set(LIBS ${ROCKSDB_SHARED_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
 
-  add_library(${ROCKSDB_SHARED_LIB} SHARED ${SOURCES})
-  target_link_libraries(${ROCKSDB_SHARED_LIB}
-    ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
-  set_target_properties(${ROCKSDB_SHARED_LIB} PROPERTIES
-                        LINKER_LANGUAGE CXX
-                        VERSION ${ROCKSDB_VERSION}
-                        SOVERSION ${ROCKSDB_VERSION_MAJOR}
-                        CXX_STANDARD 11
-                        OUTPUT_NAME "rocksdb")
+  if(FALSE) #if(BUILD_SHARED)
+      set(LIBS ${ROCKSDB_SHARED_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
+      add_library(${ROCKSDB_SHARED_LIB} SHARED ${SOURCES})
+      target_link_libraries(${ROCKSDB_SHARED_LIB}
+          ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
+      set_target_properties(${ROCKSDB_SHARED_LIB} PROPERTIES
+          LINKER_LANGUAGE CXX
+          VERSION ${ROCKSDB_VERSION}
+          SOVERSION ${ROCKSDB_VERSION_MAJOR}
+          CXX_STANDARD 11
+          OUTPUT_NAME "rocksdb")
+  else()
+      set(LIBS ${ROCKSDB_STATIC_LIB} ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
+  endif()
+
 endif()
 
 add_library(${ROCKSDB_STATIC_LIB} STATIC ${SOURCES})
+message(STATUS "LIBS: " ${LIBS})
 target_link_libraries(${ROCKSDB_STATIC_LIB}
   ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
 
+#[[
 if(WIN32)
   add_library(${ROCKSDB_IMPORT_LIB} SHARED ${SOURCES})
   target_link_libraries(${ROCKSDB_IMPORT_LIB}
@@ -771,6 +828,7 @@ if(WIN32)
       COMPILE_FLAGS "/Fd${CMAKE_CFG_INTDIR}/${ROCKSDB_IMPORT_LIB}.pdb")
   endif()
 endif()
+#]]
 
 option(WITH_JNI "build with JNI" OFF)
 if(WITH_JNI OR JNI)
@@ -810,6 +868,33 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
 
   install(DIRECTORY include/rocksdb COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
+  #[[klebs likes to have some more headers please ]]#
+  install(FILES 
+      cloud/cloud_env_impl.h
+      cloud/cloud_env_wrapper.h 
+      cloud/cloud_manifest.h 
+      cloud/db_cloud_impl.h 
+      cloud/filename.h 
+      cloud/manifest_reader.h 
+      cloud/purge.h 
+      COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/rocksdb/cloud")
+  install(FILES 
+      cloud/aws/aws_env.h 
+      cloud/aws/aws_file.h 
+      cloud/aws/aws_kafka.h 
+      cloud/aws/aws_kinesis.h 
+      cloud/aws/aws_log.h 
+      cloud/aws/aws_log.h 
+      COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/rocksdb/cloud/aws")
+  install(FILES 
+      db/log_reader.h
+      db/log_format.h
+      db/log_writer.h
+      COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/rocksdb/db")
+  install(FILES 
+      port/sys_time.h
+      COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/rocksdb/port")
+
   install(
     TARGETS ${ROCKSDB_STATIC_LIB}
     EXPORT RocksDBTargets
@@ -818,14 +903,17 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   )
 
-  install(
-    TARGETS ${ROCKSDB_SHARED_LIB}
-    EXPORT RocksDBTargets
-    COMPONENT runtime
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  )
+if(FALSE) #if(BUILD_SHARED)
+    install(
+        TARGETS ${ROCKSDB_SHARED_LIB}
+        EXPORT RocksDBTargets
+        COMPONENT runtime
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+        )
+endif()
 
   install(
     EXPORT RocksDBTargets
@@ -876,6 +964,7 @@ if(WITH_TESTS)
         db/db_options_test.cc
         db/db_properties_test.cc
         db/db_range_del_test.cc
+        db/db_secondary_test.cc
         db/db_sst_test.cc
         db/db_statistics_test.cc
         db/db_table_properties_test.cc
@@ -967,12 +1056,6 @@ if(WITH_TESTS)
         utilities/cassandra/cassandra_row_merge_test.cc
         utilities/cassandra/cassandra_serialize_test.cc
         utilities/checkpoint/checkpoint_test.cc
-        utilities/column_aware_encoding_test.cc
-        utilities/date_tiered/date_tiered_test.cc
-        utilities/document/document_db_test.cc
-        utilities/document/json_document_test.cc
-        utilities/geodb/geodb_test.cc
-        utilities/lua/rocks_lua_test.cc
         utilities/memory/memory_test.cc
         utilities/merge_operators/string_append/stringappend_test.cc
         utilities/object_registry_test.cc
@@ -980,8 +1063,6 @@ if(WITH_TESTS)
         utilities/options/options_util_test.cc
         utilities/persistent_cache/hash_table_test.cc
         utilities/persistent_cache/persistent_cache_test.cc
-        utilities/redis/redis_lists_test.cc
-        utilities/spatialdb/spatial_db_test.cc
         utilities/simulator_cache/sim_cache_test.cc
         utilities/table_properties_collectors/compact_on_deletion_collector_test.cc
         utilities/transactions/optimistic_transaction_test.cc
@@ -990,6 +1071,10 @@ if(WITH_TESTS)
         utilities/transactions/write_unprepared_transaction_test.cc
         utilities/ttl/ttl_test.cc
         utilities/write_batch_with_index/write_batch_with_index_test.cc
+
+	cloud/db_cloud_test.cc
+	cloud/cloud_manifest_test.cc
+
   )
   if(WITH_LIBRADOS)
     list(APPEND TESTS utilities/env_librados_test.cc)
@@ -1001,7 +1086,6 @@ if(WITH_TESTS)
     db/range_del_aggregator_bench.cc
     tools/db_bench.cc
     table/table_reader_bench.cc
-    utilities/column_aware_encoding_exp.cc
     utilities/persistent_cache/hash_table_bench.cc)
   add_library(testharness OBJECT util/testharness.cc)
   foreach(sourcefile ${BENCHMARKS})

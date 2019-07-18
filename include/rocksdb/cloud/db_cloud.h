@@ -31,6 +31,14 @@ class DBCloud : public StackableDB {
                      const uint64_t persistent_cache_size_gb, DBCloud** dbptr,
                      bool read_only = false);
 
+  //tklebanoff: same IF as above, but wraps the one below with the same name
+  static Status OpenAsSecondary(const Options& options, 
+          const std::string& name,
+          const std::string& secondary_path,
+          const std::string& persistent_cache_path,
+          const uint64_t persistent_cache_size_gb, DBCloud** dbptr,
+          bool read_only = false);
+
   // This is for advanced users who can comprehend column families.
   // If you want sst files from S3 to be cached in local SSD/disk, then
   // persistent_cache_path should be the pathname of the local
@@ -43,6 +51,16 @@ class DBCloud : public StackableDB {
                      const uint64_t persistent_cache_size_gb,
                      std::vector<ColumnFamilyHandle*>* handles, DBCloud** dbptr,
                      bool read_only = false);
+
+  //wrapped by OpenAsSecondary from above -- wraps DB::OpenAsSecondary
+  static Status OpenAsSecondary(const Options& options, 
+          const std::string& dbname,
+          const std::string& secondary_path,
+          const std::vector<ColumnFamilyDescriptor>& column_families,
+          const std::string& persistent_cache_path,
+          const uint64_t persistent_cache_size_gb,
+          std::vector<ColumnFamilyHandle*>* handles, DBCloud** dbptr,
+          bool read_only = false);
 
   // Synchronously copy all relevant files (if any) from source cloud storage to
   // destination cloud storage.

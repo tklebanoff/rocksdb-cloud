@@ -5,8 +5,15 @@
 #include <stdio.h>
 #include <time.h>
 #include <algorithm>
+#include <memory>
 #include <iostream>
+
+#if 0
+#include <rocksdb/cloud/cloud_env_impl.h>
+#else
 #include "cloud/cloud_env_impl.h"
+#endif
+
 #include "port/sys_time.h"
 
 #ifdef USE_AWS
@@ -384,7 +391,7 @@ class AwsEnv : public CloudEnvImpl {
 
   Status NewS3ReadableFile(const std::string& bucket,
                            const std::string& fname,
-                           unique_ptr<S3ReadableFile>* result);
+                           std::unique_ptr<S3ReadableFile>* result);
 
   // Save IDENTITY file to S3. Update dbid registry.
   Status SaveIdentitytoS3(const std::string& localfile,
