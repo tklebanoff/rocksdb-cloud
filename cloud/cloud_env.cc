@@ -39,7 +39,7 @@ void CloudEnvOptions::TEST_Initialize(const std::string & bucket,
 }
 
 BucketOptions::BucketOptions() {
-    prefix_ = "rockset.";
+    prefix_ = "";
 }
 
 void BucketOptions::SetBucketName(const std::string & bucket,
