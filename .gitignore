@@ -76,3 +76,4 @@ fbcode
 travis-build/
 buckifier/*.pyc
 **__pycache__**
+*__pycache__*

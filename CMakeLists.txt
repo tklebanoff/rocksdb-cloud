@@ -46,7 +46,7 @@ endif()
 add_definitions(-DUSE_AWS)
 include_directories(/usr/local/include)
 
-#include(CTest)
+include(CTest)
 
 list(APPEND THIRDPARTY_LIBS 
     aws-cpp-sdk-s3 
@@ -569,6 +569,7 @@ set(SOURCES
         env/mock_env.cc
         memtable/alloc_tracker.cc
         memtable/hash_linklist_rep.cc
+        memtable/hash_cuckoo_rep.cc
         memtable/hash_skiplist_rep.cc
         memtable/skiplistrep.cc
         memtable/vectorrep.cc
@@ -666,6 +667,17 @@ set(SOURCES
         util/trace_replay.cc
         util/transaction_test_util.cc
         util/xxhash.cc
+        utilities/col_buf_decoder.cc
+        utilities/col_buf_encoder.cc
+        utilities/column_aware_encoding_util.cc
+        utilities/date_tiered/date_tiered_db_impl.cc
+        utilities/document/document_db.cc
+        utilities/document/json_document.cc
+        utilities/document/json_document_builder.cc
+        utilities/geodb/geodb_impl.cc
+        utilities/lua/rocks_lua_compaction_filter.cc
+        utilities/redis/redis_lists.cc
+        utilities/spatialdb/spatial_db.cc
         utilities/backupable/backupable_db.cc
         utilities/blob_db/blob_compaction_filter.cc
         utilities/blob_db/blob_db.cc
@@ -1056,6 +1068,14 @@ if(WITH_TESTS)
         utilities/cassandra/cassandra_row_merge_test.cc
         utilities/cassandra/cassandra_serialize_test.cc
         utilities/checkpoint/checkpoint_test.cc
+        utilities/column_aware_encoding_test.cc
+        utilities/date_tiered/date_tiered_test.cc
+        utilities/document/document_db_test.cc
+        utilities/document/json_document_test.cc
+        utilities/geodb/geodb_test.cc
+        utilities/lua/rocks_lua_test.cc
+        utilities/redis/redis_lists_test.cc
+        utilities/spatialdb/spatial_db_test.cc
         utilities/memory/memory_test.cc
         utilities/merge_operators/string_append/stringappend_test.cc
         utilities/object_registry_test.cc
@@ -1113,9 +1133,10 @@ if(WITH_TESTS)
     set_target_properties(${TESTUTILLIB} PROPERTIES COMPILE_FLAGS "/Fd${CMAKE_CFG_INTDIR}/testutillib${ARTIFACT_SUFFIX}.pdb")
   endif()
   set_target_properties(${TESTUTILLIB}
-        PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
-        EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
-        EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
+        PROPERTIES 
+        EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 0
+        EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 0
+        EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 0
         )
 
   # Tests are excluded from Release builds
@@ -1126,9 +1147,10 @@ if(WITH_TESTS)
       add_executable(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} ${sourcefile}
         $<TARGET_OBJECTS:testharness>)
       set_target_properties(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX}
-        PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
-        EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
-        EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
+        PROPERTIES 
+        EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 0
+        EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 0
+        EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 0
         OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
         )
       target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} testutillib${ARTIFACT_SUFFIX} gtest ${LIBS})
@@ -1147,9 +1169,10 @@ if(WITH_TESTS)
       string(REGEX REPLACE "^((.+)/)+" "" exename ${exename})
       add_executable(${exename}${ARTIFACT_SUFFIX} ${sourcefile})
       set_target_properties(${exename}${ARTIFACT_SUFFIX}
-        PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 1
-        EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 1
-        EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
+        PROPERTIES 
+        EXCLUDE_FROM_DEFAULT_BUILD_RELEASE 0
+        EXCLUDE_FROM_DEFAULT_BUILD_MINRELEASE 0
+        EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 0
         )
       target_link_libraries(${exename}${ARTIFACT_SUFFIX} ${ROCKSDB_IMPORT_LIB} testutillib${ARTIFACT_SUFFIX})
       add_test(NAME ${exename} COMMAND ${exename}${ARTIFACT_SUFFIX})
